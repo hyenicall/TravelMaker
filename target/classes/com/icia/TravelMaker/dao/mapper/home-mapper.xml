@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+ "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+ <mapper namespace="Home">
+ 	<select id="bestOrderList" resultType="Package">
+ 		SELECT *
+		FROM(SELECT P.PIMG,
+					P.PNAME,
+					P.PNUMBER,
+		        ROW_NUMBER() OVER(ORDER BY NVL(O.ORDERS, 0) DESC) RN
+		    FROM PACKAGE P LEFT OUTER JOIN (SELECT PNUMBER,
+		                                        COUNT(PNUMBER) AS "ORDERS"
+		                                    FROM ORDERS
+		                                    WHERE OSTATE = 2
+		                                    GROUP BY PNUMBER) O ON P.PNUMBER = O.PNUMBER)
+		WHERE RN BETWEEN 1 AND 5
+ 	</select>
+ 	
+ 	<select id="preferOrderList" parameterType="Member" resultType="Package">
+ 		SELECT *
+		FROM (SELECT P.PIMG,
+					P.PNAME,
+					P.PNUMBER,
+		        ROW_NUMBER() OVER(ORDER BY NVL(O.ORDERS, 0) DESC) RN
+		    FROM PACKAGE P LEFT OUTER JOIN (SELECT PNUMBER,
+		                                        COUNT(PNUMBER) AS "ORDERS"
+		                                    FROM ORDERS
+		                                    GROUP BY PNUMBER) O ON P.PNUMBER = O.PNUMBER
+		    WHERE P.PNUMBER IN (SELECT P.PNUMBER
+		                            FROM PACKAGE P LEFT OUTER JOIN PACKAGECATEGORY PC ON P.PNUMBER = PC.PNUMBER
+		                            WHERE PC.CNUMBER IN (SELECT CNUMBER
+		                                                FROM MEMBERPREFERENCE
+		                                                WHERE MID = #{MID})
+		                                AND P.PNUMBER NOT IN (SELECT PNUMBER
+		                                                    FROM ORDERS
+		                                                    WHERE MID = #{MID})
+		                            GROUP BY P.PNUMBER))
+		WHERE RN BETWEEN 1 AND 5
+ 	</select>
+ 	
+ 	<select id="likeOrderList" parameterType="Member" resultType="Package">
+ 		SELECT *
+		FROM (SELECT P.PIMG,
+					P.PNAME,
+					P.PNUMBER,
+		        ROW_NUMBER() OVER(ORDER BY NVL(O.ORDERS, 0) DESC) RN
+		    FROM PACKAGE P LEFT OUTER JOIN (SELECT PNUMBER,
+		                                        COUNT(PNUMBER) AS "ORDERS"
+		                                    FROM ORDERS
+		                                    GROUP BY PNUMBER) O ON P.PNUMBER = O.PNUMBER
+		    WHERE P.PNUMBER IN (SELECT PNUMBER
+		                        FROM ORDERS
+		                        WHERE PNUMBER IN (SELECT PNUMBER
+		                                        FROM PACKAGELIKE
+		                                        WHERE MID = #{MID})
+		                            AND PNUMBER NOT IN (SELECT PNUMBER
+		                                                FROM ORDERS
+		                                                WHERE MID = #{MID}
+		                                                GROUP BY PNUMBER)))
+		WHERE RN BETWEEN 1 AND 5
+ 	</select>
+ 	
+ 	<select id="sameLikeOrderList" parameterType="Member" resultType="Package">
+ 		SELECT *
+		FROM (SELECT P.PIMG,
+					P.PNAME,
+					P.PNUMBER,
+		        ROW_NUMBER() OVER(ORDER BY NVL(O.ORDERS, 0) DESC) RN
+		    FROM PACKAGE P LEFT OUTER JOIN (SELECT PNUMBER,
+		                                        COUNT(PNUMBER) AS "ORDERS"
+		                                    FROM ORDERS
+		                                    GROUP BY PNUMBER) O ON P.PNUMBER = O.PNUMBER
+		    WHERE P.PNUMBER IN (SELECT PNUMBER
+		                        FROM ORDERS
+		                        WHERE MID IN (SELECT MID
+		                                        FROM PACKAGELIKE
+		                                        WHERE PNUMBER IN (SELECT PNUMBER
+		                                                        FROM PACKAGELIKE
+		                                                        WHERE MID = #{MID})
+		                                        	AND MID != #{MID})
+		                            AND PNUMBER NOT IN (SELECT PNUMBER
+		                                                FROM ORDERS
+		                                                WHERE MID = #{MID}
+		                                                GROUP BY PNUMBER)))
+		WHERE RN BETWEEN 1 AND 5
+ 	</select>
+ 	
+ 	<select id="sameOrderList" parameterType="Member" resultType="Package">
+ 		SELECT *
+		FROM (SELECT P.PIMG,
+					P.PNAME,
+					P.PNUMBER,
+		        ROW_NUMBER() OVER(ORDER BY NVL(O.ORDERS, 0) DESC) RN
+		    FROM PACKAGE P LEFT OUTER JOIN (SELECT PNUMBER,
+		                                        COUNT(PNUMBER) AS "ORDERS"
+		                                    FROM ORDERS
+		                                    GROUP BY PNUMBER) O ON P.PNUMBER = O.PNUMBER
+		    WHERE P.PNUMBER IN (SELECT PNUMBER
+		                        FROM ORDERS
+		                        WHERE MID IN (SELECT MID
+		                                        FROM ORDERS
+		                                        WHERE PNUMBER IN (SELECT PNUMBER
+		                                                        FROM ORDERS
+		                                                        WHERE MID = #{MID}
+		                                                        GROUP BY PNUMBER)
+		                                            AND MID != #{MID})
+		                            AND PNUMBER NOT IN (SELECT PNUMBER
+		                                                FROM ORDERS
+		                                                WHERE MID = #{MID}
+		                                                GROUP BY PNUMBER)))
+		WHERE RN BETWEEN 1 AND 5
+ 	</select>
+ 	
+ 	<select id="bestLikeList" resultType="Package">
+ 		SELECT *
+		FROM (SELECT P.PIMG,
+					P.PNAME,
+					P.PNUMBER,
+		        ROW_NUMBER() OVER (ORDER BY NVL(PL.PACKAGELIKE, 0) DESC) RN
+		    FROM PACKAGE P LEFT OUTER JOIN (SELECT PNUMBER,
+		                                        COUNT(PNUMBER) AS "PACKAGELIKE"
+		                                    FROM PACKAGELIKE
+		                                    GROUP BY PNUMBER) PL ON P.PNUMBER = PL.PNUMBER)
+		WHERE RN BETWEEN 1 AND 5
+ 	</select>
+ 	
+ 	<select id="ReviewPost" resultType="ReviewPost">
+ 		SELECT *
+		FROM (SELECT REVIEWPOST.*,
+		        ROW_NUMBER() OVER (ORDER BY RPDATE DESC) RN
+		    FROM REVIEWPOST)
+		WHERE RN BETWEEN 1 AND 10
+ 	</select>
+ </mapper>

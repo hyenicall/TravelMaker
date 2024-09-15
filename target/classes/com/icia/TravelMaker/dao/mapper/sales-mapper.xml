@@ -1,0 +1,204 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+ "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+ <mapper namespace="Sales">
+ 	<select id="packageListCount" resultType="INTEGER">
+ 		SELECT COUNT(PNUMBER)
+ 		FROM PACKAGE
+ 	</select>
+ 	
+ 	<select id="packageList" parameterType="Page" resultType="Package">
+ 		SELECT *
+ 		FROM (SELECT PACKAGE.*,
+	 			ROW_NUMBER() OVER(ORDER BY PNUMBER DESC) RN
+			FROM PACKAGE)
+		WHERE RN BETWEEN #{start} AND #{end}
+ 	</select>
+ 	
+ 	<select id="searchPackageListCount" parameterType="Search" resultType="INTEGER">
+ 		SELECT COUNT(P.PNUMBER)
+		FROM PACKAGE P LEFT OUTER JOIN (SELECT PNUMBER,
+			                               LISTAGG(CAST(PLONAME AS VARCHAR(2000)), ', ') WITHIN GROUP (ORDER BY PLONAME) "PLONAME"
+			                           FROM PACKAGELOCATION
+			                           GROUP BY PNUMBER) PLO ON P.PNUMBER = PLO.PNUMBER
+			   LEFT OUTER JOIN (SELECT PC.PNUMBER,
+			                   LISTAGG(CAST(C.CNAME AS VARCHAR(2000)), ', ') WITHIN GROUP (ORDER BY C.CNAME) "CNAME"
+			               FROM PACKAGECATEGORY PC INNER JOIN CATEGORY C ON PC.CNUMBER = C.CNUMBER
+			               GROUP BY PC.PNUMBER) PC ON P.PNUMBER = PC.PNUMBER
+		<choose>
+			<when test="searchType.equals('all')">
+				WHERE P.PNAME LIKE '%' || #{keyWord} || '%' OR PLO.PLONAME LIKE '%' || #{keyWord} || '%' OR PC.CNAME LIKE '%' || #{keyWord} || '%'
+			</when>
+			<when test="searchType.equals('PNAME')">
+				WHERE P.PNAME LIKE '%' || #{keyWord} || '%'
+			</when>
+			<when test="searchType.equals('PLONAME')">
+				WHERE PLO.PLONAME LIKE '%' || #{keyWord} || '%'
+			</when>
+			<when test="searchType.equals('CNAME')">
+				WHERE PC.CNAME LIKE '%' || #{keyWord} || '%'
+			</when>
+		</choose>
+ 	</select>
+ 	
+ 	<select id="searchPackageList" parameterType="java.util.Map" resultType="Package">
+ 		SELECT *
+ 		FROM (SELECT ROW_NUMBER() OVER(ORDER BY P.PNUMBER DESC) RN,
+ 				P.*
+			FROM PACKAGE P LEFT OUTER JOIN (SELECT PNUMBER,
+				                               LISTAGG(CAST(PLONAME AS VARCHAR(2000)), ', ') WITHIN GROUP (ORDER BY PLONAME) "PLONAME"
+				                           FROM PACKAGELOCATION
+				                           GROUP BY PNUMBER) PLO ON P.PNUMBER = PLO.PNUMBER
+				   LEFT OUTER JOIN (SELECT PC.PNUMBER,
+				                   LISTAGG(CAST(C.CNAME AS VARCHAR(2000)), ', ') WITHIN GROUP (ORDER BY C.CNAME) "CNAME"
+				               FROM PACKAGECATEGORY PC INNER JOIN CATEGORY C ON PC.CNUMBER = C.CNUMBER
+				               GROUP BY PC.PNUMBER) PC ON P.PNUMBER = PC.PNUMBER
+			<choose>
+				<when test="search.searchType.equals('all')">
+					WHERE P.PNAME LIKE '%' || #{search.keyWord} || '%' OR PLO.PLONAME LIKE '%' || #{search.keyWord} || '%' OR PC.CNAME LIKE '%' || #{search.keyWord} || '%'
+				</when>
+				<when test="search.searchType.equals('PNAME')">
+					WHERE P.PNAME LIKE '%' || #{search.keyWord} || '%'
+				</when>
+				<when test="search.searchType.equals('PLONAME')">
+					WHERE PLO.PLONAME LIKE '%' || #{search.keyWord} || '%'
+				</when>
+				<when test="search.searchType.equals('CNAME')">
+					WHERE PC.CNAME LIKE '%' || #{search.keyWord} || '%'
+				</when>
+			</choose>)
+		WHERE RN BETWEEN #{page.start} AND #{page.end}
+ 	</select>
+ 	
+ 	<select id="packageDetail" parameterType="Package" resultType="PackageDetail">
+ 		SELECT P.*,
+		    PLO.PLONAME,
+		    C.CNAME
+		FROM PACKAGE P LEFT OUTER JOIN (SELECT PNUMBER,
+		                                LISTAGG(CAST(PLONAME AS VARCHAR(2000)), ', ') WITHIN GROUP (ORDER BY PLONAME) "PLONAME"
+		                            FROM PACKAGELOCATION
+		                            GROUP BY PNUMBER) PLO ON P.PNUMBER = PLO.PNUMBER
+		               LEFT OUTER JOIN (SELECT PC.PNUMBER,
+		                                LISTAGG(CAST(C.CNAME AS VARCHAR(2000)), '; ') WITHIN GROUP (ORDER BY C.CNAME) "CNAME"
+		                            FROM PACKAGECATEGORY PC INNER JOIN CATEGORY C ON PC.CNUMBER = C.CNUMBER
+		                            GROUP BY PC.PNUMBER) C ON P.PNUMBER = C.PNUMBER
+		WHERE P.PNUMBER = #{PNUMBER}
+ 	</select>
+ 	
+ 	<select id="packageSchedule" parameterType="Package" resultType="PackageSchedule">
+ 		SELECT *
+		FROM PACKAGESCHEDULE
+		WHERE PNUMBER = #{PNUMBER} AND PSSTART > SYSDATE
+ 	</select>
+ 	
+ 	<select id="reviewList" parameterType="Package" resultType="ReviewList">
+ 		SELECT RV.*,
+		    M.MNICK
+		FROM REVIEW RV INNER JOIN MEMBER M ON RV.OMID = M.MID
+		WHERE RV.OPNUMBER = #{PNUMBER}
+ 	</select>
+ 	
+ 	<select id="pointInfo" parameterType="Member" resultType="Point">
+	 	SELECT M.MID,
+	 		M.MNAME,
+		    PO.POAMOUNT
+		FROM MEMBER M LEFT OUTER JOIN (SELECT MID,
+		                                    SUM(POAMOUNT * POSTATE) AS "POAMOUNT"
+		                                FROM POINT
+		                                GROUP BY MID) PO ON M.MID = PO.MID
+		WHERE M.MID = #{MID}
+ 	</select>
+ 	
+ 	<select id="ordersDate" parameterType="Review" resultType="String">
+ 		SELECT MIN(O.ODATE) AS "ODATE"
+		FROM ORDERS O LEFT OUTER JOIN REVIEW RV ON O.PNUMBER = RV.OPNUMBER AND O.MID = RV.OMID AND O.ODATE = RV.ODATE
+		WHERE O.MID = #{OMID} AND O.PNUMBER = #{OPNUMBER} AND RV.ODATE IS NULL
+ 	</select>
+ 	
+ 	<insert id="reviewInsert" parameterType="Review">
+ 		INSERT INTO REVIEW(OPNUMBER, OMID, ODATE, RVSCORE, RVCONTENT, RVDATE)
+ 		VALUES(#{OPNUMBER}, #{OMID}, TO_DATE(#{ODATE}, 'YYYY-MM-DD HH24:MI:SS'), #{RVSCORE}, #{RVCONTENT}, DEFAULT)
+ 	</insert>
+ 	
+ 	<insert id="likeInsert" parameterType="LikeList">
+ 		INSERT INTO PACKAGELIKE(MID, PNUMBER)
+ 		VALUES(#{MID}, #{PNUMBER})
+ 	</insert>
+ 	
+ 	<delete id="likeDelete" parameterType="LikeList">
+ 		DELETE FROM PACKAGELIKE WHERE MID = #{MID} AND PNUMBER = #{PNUMBER}
+ 	</delete>
+
+ 	<insert id="cartInsert" parameterType="CartList">
+ 		INSERT INTO PACKAGECART(MID, PNUMBER, PSSTART)
+ 		VALUES(#{MID}, #{PNUMBER}, TO_DATE(#{PSSTART}, 'YYYY-MM-DD HH24:MI:SS'))
+ 	</insert>
+ 	
+ 	<delete id="cartDelete" parameterType="CartList">
+ 		DELETE FROM PACKAGECART WHERE MID = #{MID} AND PNUMBER = #{PNUMBER} AND PSSTART = TO_DATE(#{PSSTART}, 'YYYY-MM-DD HH24:MI:SS')
+ 	</delete>
+ 	
+ 	<select id="ordersInsert" parameterType="Orders" statementType="CALLABLE">
+ 		{ CALL ORDERSINSERT (
+ 			#{PSSTART, mode=IN},
+		    #{PNUMBER, mode=IN},
+		    #{OSTATE, mode=IN},
+		    #{OADULT, mode=IN},
+		    #{OCHILD, mode=IN},
+		    #{OINFANT, mode=IN},
+		    #{OAMOUNT, mode=IN},
+		    #{MID, mode=IN},
+		    #{ODATE, mode=OUT, jdbcType=DATE}) }
+ 	</select>
+ 	
+ 	<insert id="travelerInsert" parameterType="Traveler">
+ 		INSERT INTO TRAVELER(OMID, OPNUMBER, ODATE, TNAME, TBIRTH, TEMAIL, TPHONE, TENNAME)
+ 		VALUES(#{OMID}, #{OPNUMBER}, TO_DATE(#{ODATE}, 'YYYY-MM-DD HH24:MI:SS'), #{TNAME}, TO_DATE(#{TBIRTH}, 'YYYY-MM-DD'), #{TEMAIL}, #{TPHONE}, #{TENNAME})
+ 	</insert>
+ 	
+ 	<select id="countOrders" parameterType="Orders" resultType="INTEGER">
+ 		SELECT SUM(OADULT + OCHILD + OINFANT)
+		FROM ORDERS
+		WHERE OSTATE <![CDATA[>]]> 0 AND PNUMBER = #{PNUMBER} AND PSSTART = TO_DATE(#{PSSTART}, 'YYYY-MM-DD HH24:MI:SS')
+ 	</select>
+ 	
+ 	<select id="buyerList" parameterType="Orders" resultType="Orders">
+ 		SELECT O.MID,
+		    P.PNAME,
+		    O.PSSTART,
+		    PS.PSEND
+		FROM ORDERS O INNER JOIN PACKAGE P ON O.PNUMBER = P.PNUMBER
+		    INNER JOIN PACKAGESCHEDULE PS ON O.PNUMBER = PS.PNUMBER AND O.PSSTART = PS.PSSTART
+ 		WHERE O.OSTATE <![CDATA[>]]> 0 AND O.PNUMBER = #{PNUMBER} AND O.PSSTART = TO_DATE(#{PSSTART}, 'YYYY-MM-DD HH24:MI:SS') 
+ 	</select>
+ 	
+ 	<insert id="pointInsert" parameterType="Point">
+ 		INSERT INTO POINT(MID, PODATE, POAMOUNT, POSTATE, POINFO, OMID, OPNUMBER, ODATE)
+ 		VALUES(#{MID}, DEFAULT, #{POAMOUNT}, #{POSTATE}, #{POINFO}, #{MID}, #{OPNUMBER}, TO_DATE(#{ODATE}, 'YYYY-MM-DD HH24:MI:SS'))
+ 	</insert>
+ 	
+ 	<update id="balanceUpdate" parameterType="Orders">
+ 		UPDATE ORDERS
+		SET OSTATE = #{OSTATE}, OAMOUNT = OAMOUNT + #{OAMOUNT}
+		WHERE MID = #{MID} AND PNUMBER = #{PNUMBER} AND ODATE = TO_DATE(#{ODATE}, 'YYYY-MM-DD HH24:MI:SS')
+ 	</update>
+ 	
+ 	<select id="packageLocation" parameterType="Package" resultType="PackageLocation">
+ 		SELECT *
+ 		FROM PACKAGELOCATION
+ 		WHERE PNUMBER = #{PNUMBER}
+ 	</select>
+ 	
+ 	<select id="reviewCheck" parameterType="java.util.Map" resultType="INTEGER">
+ 		SELECT COUNT(O.MID) - COUNT(RV.OMID)
+		FROM ORDERS O LEFT OUTER JOIN REVIEW RV ON O.PNUMBER = RV.OPNUMBER AND O.MID = RV.OMID AND O.ODATE = RV.ODATE
+		WHERE O.PNUMBER = #{package.PNUMBER} AND O.MID = #{member.MID}
+ 	</select>
+ 	
+ 	<select id="likeCheck" parameterType="java.util.Map" resultType="INTEGER">
+ 		SELECT COUNT(MID)
+		FROM PACKAGELIKE
+		WHERE PNUMBER = #{package.PNUMBER} AND MID = #{member.MID}
+ 	</select>
+ </mapper>

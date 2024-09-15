@@ -1,0 +1,480 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+ "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+ <mapper namespace="Admin">
+ 	<insert id="boardCategoryInsert" parameterType="BoardCategory">
+ 		INSERT INTO BOARDCATEGORY(BCNUMBER, BCNAME, BCSTATE)
+ 		VALUES(BCNUMBER_SEQ.NEXTVAL, #{BCNAME}, 1)
+ 	</insert>
+ 	
+ 	<select id="boardCategoryList" resultType="BoardCategory">
+ 		SELECT *
+		FROM BOARDCATEGORY
+		ORDER BY BCNUMBER
+ 	</select>
+ 	
+ 	<select id="packageInsert" parameterType="Package" statementType="CALLABLE">
+ 		{ CALL PACKAGEINSERT(
+ 			#{PNUMBER, mode=OUT, jdbcType=INTEGER},
+			#{PNAME, mode=IN},
+			#{PIMG, mode=IN},
+			#{PADULT, mode=IN},
+			#{PCHILD, mode=IN},
+			#{PINFANT, mode=IN},
+			#{PPERIOD, mode=IN},
+			#{PMIN, mode=IN},
+			#{PMAX, mode=IN},
+			#{PINFO_1, mode=IN},
+			#{PINFO_2, mode=IN},
+			#{PINFO_3, mode=IN},
+			#{PINFO_4, mode=IN},
+			#{PINFO_5, mode=IN}) }
+ 	</select>
+ 	
+ 	<insert id="packageLocationInsert" parameterType="PackageLocation">
+ 		INSERT INTO PACKAGELOCATION(PNUMBER, PLONAME, PLOLAT, PLOLNG)
+ 		VALUES(#{PNUMBER}, #{PLONAME}, #{PLOLAT}, #{PLOLNG})
+ 	</insert>
+ 	
+ 	<insert id="packageScheduleInsert" parameterType="PackageSchedule">
+ 		INSERT INTO PACKAGESCHEDULE(PNUMBER, PSSTART, PSEND)
+ 		VALUES(#{PNUMBER}, #{PSSTART}, #{PSEND})
+ 	</insert>
+ 	
+ 	<insert id="packageCategoryInsert" parameterType="packageCategory">
+ 		INSERT INTO PACKAGECATEGORY(PNUMBER, CNUMBER)
+ 		VALUES(#{PNUMBER}, #{CNUMBER})
+ 	</insert>
+ 	
+ 	<select id="adminJobList" parameterType="Member" resultType="AdminJobList">
+ 		SELECT MID,
+ 			ADATE,
+ 			AJOB
+ 		FROM ADMINJOBLIST
+ 		WHERE MID = #{MID}
+ 		ORDER BY ADATE DESC
+ 	</select>
+ 	
+ 	<select id="categoryList" resultType="Category">
+ 		SELECT *
+		FROM CATEGORY
+		ORDER BY CNUMBER
+ 	</select>
+ 	
+ 	<insert id="categoryInsert" parameterType="Category">
+ 		INSERT INTO CATEGORY(CNUMBER, CNAME)
+ 		VALUES(CNUMBER_SEQ.NEXTVAL, #{CNAME})
+ 	</insert>
+ 	
+ 	<insert id="jobListInsert" parameterType="AdminJobList">
+ 		INSERT INTO ADMINJOBLIST(MID, ADATE, AJOB)
+ 		VALUES(#{MID}, DEFAULT, #{AJOB})
+ 	</insert>
+ 	
+ 	<select id="complaintBoardCount" parameterType="Member" resultType="INTEGER">
+ 		SELECT COUNT(BNUMBER)
+		FROM (<choose>
+		    	<when test="MID != null and !MID.equals('')">
+		    		SELECT BC.BNUMBER
+			    	FROM BOARDCOMPLAINT BC INNER JOIN BOARD B ON BC.BNUMBER = B.BNUMBER
+			    	WHERE B.MID = #{MID}
+			    	GROUP BY BC.BNUMBER
+		    	</when>
+		    	<otherwise>
+		    		SELECT BNUMBER
+		    		FROM BOARDCOMPLAINT
+					GROUP BY BNUMBER
+		    	</otherwise>
+		    </choose>)
+ 	</select>
+ 	
+ 	<select id="complaintBoardList" parameterType="java.util.Map" resultType="BoardList">
+ 		SELECT *
+		FROM (SELECT ROW_NUMBER() OVER(ORDER BY B.BNUMBER DESC) RN,
+		        B.*,
+		        BC.BCNAME,
+		        M.MNICK,
+		        M.MSTATE,
+		        BV.BOARDVIEWS,
+		        BL.BOARDLIKE,
+		        BC.BOARDCOMPLAINT
+		    FROM BOARD B INNER JOIN MEMBER M ON B.MID = M.MID
+		        INNER JOIN BOARDCATEGORY BC ON B.BCNUMBER = BC.BCNUMBER
+		        LEFT OUTER JOIN (SELECT BNUMBER,
+		                            COUNT(MID) AS "BOARDVIEWS"
+		                        FROM BOARDVIEWS
+		                        GROUP BY BNUMBER) BV ON B.BNUMBER = BV.BNUMBER
+		        LEFT OUTER JOIN (SELECT BNUMBER,
+		                            COUNT(MID) AS "BOARDLIKE"
+		                        FROM BOARDLIKE
+		                        GROUP BY BNUMBER) BL ON B.BNUMBER = BL.BNUMBER
+		        INNER JOIN (SELECT BNUMBER,
+		                        COUNT(MID) AS "BOARDCOMPLAINT"
+		                    FROM BOARDCOMPLAINT
+		                    GROUP BY BNUMBER) BC ON B.BNUMBER = BC.BNUMBER
+			<if test="member.MID != null and !member.MID.equals('')">
+				WHERE B.MID = #{member.MID}
+			</if>)
+		WHERE RN BETWEEN #{page.start} AND #{page.end}
+ 	</select>
+ 	
+ 	<select id="travelerCount" resultType="INTEGER">
+ 		SELECT COUNT(OMID)
+		FROM TRAVELER
+ 	</select>
+ 	
+ 	<select id="travelerList" parameterType="Page" resultType="TravelerList">
+ 		SELECT *
+ 		FROM (SELECT ROW_NUMBER() OVER(ORDER BY T.ODATE DESC) RN, 
+	 			T.*,
+			    P.PNAME,
+			    P.PNUMBER,
+			    O.PSSTART,
+	            PS.PSEND
+			FROM TRAVELER T INNER JOIN PACKAGE P ON T.OPNUMBER = P.PNUMBER
+	                		INNER JOIN ORDERS O ON T.OPNUMBER = O.PNUMBER AND T.ODATE = O.ODATE AND T.OMID = O.MID
+	                		INNER JOIN PACKAGESCHEDULE PS ON O.PNUMBER = PS.PNUMBER AND O.PSSTART = PS.PSSTART)
+		WHERE RN BETWEEN #{start} AND #{end}
+ 	</select>
+ 	
+ 	<select id="complaintCommentsCount" parameterType="Member" resultType="INTEGER">
+ 		SELECT COUNT(CMBNUMBER)
+		FROM COMMENTSCOMPLAINT
+		<if test="MID != null and !MID.equals('')">
+			WHERE CMMID = #{MID}
+		</if>
+ 	</select>
+ 	
+ 	<select id="complaintCommentsList" parameterType="java.util.Map" resultType="CommentsList">
+ 		SELECT *
+ 		FROM (SELECT ROW_NUMBER() OVER(ORDER BY CM.CMDATE DESC) RN,
+ 				CM.*,
+			    B.BTITLE,
+			    M.MNICK,
+			    CC.COMMENTSCOMPLAINT,
+			    CL.COMMENTSLIKE
+			FROM COMMENTS CM INNER JOIN (SELECT CMBNUMBER,
+											CMMID,
+				                            CMDATE,
+				                            COUNT(MID) AS "COMMENTSCOMPLAINT"
+				                         FROM COMMENTSCOMPLAINT
+				                         GROUP BY CMBNUMBER, CMMID, CMDATE) CC ON CM.BNUMBER = CC.CMBNUMBER AND CM.MID = CC.CMMID AND CM.CMDATE = CC.CMDATE
+				LEFT OUTER JOIN (SELECT CMBNUMBER,
+									CMMID,
+				                    CMDATE,
+				                    COUNT(MID) AS "COMMENTSLIKE"
+				                 FROM COMMENTSLIKE
+				                 GROUP BY CMBNUMBER, CMMID, CMDATE) CL ON CM.BNUMBER = CL.CMBNUMBER AND CM.MID = CL.CMMID AND CM.CMDATE = CL.CMDATE
+				INNER JOIN BOARD B ON CM.BNUMBER = B.BNUMBER
+				INNER JOIN MEMBER M ON CM.MID = M.MID
+			<if test="member.MID != null and !member.MID.equals('')">
+				WHERE CM.MID = #{member.MID}
+			</if>)
+		WHERE RN BETWEEN #{page.start} AND #{page.end}
+ 	</select>
+ 	
+ 	<select id="memberCount" parameterType="Member" resultType="INTEGER">
+ 		SELECT COUNT(MID)
+ 		FROM MEMBER
+ 		WHERE MLEVEL = #{MLEVEL} AND MSTATE != -2 <if test="MLEVEL == 0"> AND MID != #{MID} </if>
+ 	</select>
+ 	
+ 	<select id="memberList" parameterType="java.util.Map" resultType="MemberList">
+ 		SELECT *
+ 		FROM (SELECT ROW_NUMBER() OVER(ORDER BY M.MDATE DESC) RN,
+	 			M.*,
+			    BC.BOARDCOMPLAINT,
+			    CC.COMMENTSCOMPLAINT,
+			    AB.ACCOUNTBAN,
+	            PO.POAMOUNT
+			FROM MEMBER M LEFT OUTER JOIN (SELECT MID,
+			                                    COUNT(BNUMBER) AS "BOARDCOMPLAINT"
+			                                FROM(SELECT B.BNUMBER,
+			                                            B.MID,
+			                                            COUNT(BC.MID) AS "BOARDCOMPLAINT"
+			                                        FROM BOARD B LEFT OUTER JOIN BOARDCOMPLAINT BC ON B.BNUMBER = BC.BNUMBER
+			                                        GROUP BY B.BNUMBER, B.MID)
+			                                WHERE BOARDCOMPLAINT > 0
+			                                GROUP BY MID) BC ON M.MID = BC.MID
+			                LEFT OUTER JOIN (SELECT MID,
+			                                        COUNT(*) AS "COMMENTSCOMPLAINT"
+			                                FROM (SELECT CM.BNUMBER,
+			                                                CM.MID,
+			                                                CM.CMDATE,
+			                                                COUNT(CC.MID) AS "COMMENTSCOMPLAINT"
+			                                        FROM COMMENTS CM LEFT OUTER JOIN COMMENTSCOMPLAINT CC ON CM.BNUMBER = CC.CMBNUMBER AND CM.MID = CC.CMMID AND CM.CMDATE = CC.CMDATE
+			                                        GROUP BY CM.BNUMBER, CM.MID, CM.CMDATE)
+			                                WHERE COMMENTSCOMPLAINT > 0
+			                                GROUP BY MID) CC ON M.MID = CC.MID
+			                LEFT OUTER JOIN (SELECT MID,
+			                                    COUNT(ABDATE) AS "ACCOUNTBAN"
+			                                FROM ACCOUNTBAN
+			                                GROUP BY MID) AB ON M.MID = AB.MID
+	                        LEFT OUTER JOIN (SELECT MID,
+	                                            SUM(POAMOUNT * POSTATE) AS "POAMOUNT"
+	                                        FROM POINT
+	                                        GROUP BY MID) PO ON M.MID = PO.MID
+			 WHERE M.MLEVEL = #{member.MLEVEL} AND M.MSTATE != -2 <if test="member.MLEVEL == 0"> AND M.MID != #{member.MID} </if>)
+		WHERE RN BETWEEN #{page.start} AND #{page.end}
+ 	</select>
+ 	
+ 	<update id="memberStateUpdate" parameterType="Member">
+ 		UPDATE MEMBER SET MSTATE = #{MSTATE} WHERE MID = #{MID}
+ 	</update>
+ 	
+ 	<update id="commentsLock" parameterType="Comments">
+ 		UPDATE COMMENTS
+		SET CMSTATE = #{CMSTATE}
+		WHERE BNUMBER = #{BNUMBER} AND MID = #{MID} AND CMDATE = TO_DATE(#{CMDATE}, 'YYYY-MM-DD HH24:MI:SS')
+ 	</update>
+ 	
+ 	<update id="boardLock" parameterType="Board">
+ 		UPDATE BOARD
+ 		SET BSTATE = #{BSTATE}
+ 		WHERE BNUMBER = #{BNUMBER}
+ 	</update>
+ 	
+ 	<update id="reviewPostLock" parameterType="ReviewPost">
+ 		UPDATE REVIEWPOST
+ 		SET RPSTATE = #{RPSTATE}
+ 		WHERE OMID = #{OMID} AND OPNUMBER = #{OPNUMBER} AND ODATE = TO_DATE(#{ODATE}, 'YYYY-MM-DD HH24:MI:SS')
+ 	</update>
+ 	
+ 	<update id="boardCategorylock" parameterType="BoardCategory">
+ 		UPDATE BOARDCATEGORY
+ 		SET BCSTATE = #{BCSTATE}
+ 		WHERE BCNUMBER = #{BCNUMBER}
+ 	</update>
+ 	
+ 	<select id="packageDetail" parameterType="Package" resultType="Package">
+ 		SELECT * FROM PACKAGE WHERE PNUMBER = #{PNUMBER}
+ 	</select>
+ 	
+ 	<update id="packageUpdate">
+ 		UPDATE PACKAGE
+ 		SET PNAME = #{PNAME},
+			PADULT = #{PADULT},
+			PCHILD = #{PCHILD},
+			PINFANT = #{PINFANT},
+			PMIN = #{PMIN},
+			PMAX = #{PMAX},
+			PINFO_1 = #{PINFO_1},
+			PINFO_2 = #{PINFO_2},
+			PINFO_3 = #{PINFO_3},
+			PINFO_4 = #{PINFO_4},
+			PINFO_5 = #{PINFO_5},
+			PINFO_6 = #{PINFO_6},
+			PINFO_7 = #{PINFO_7},
+			PINFO_8 = #{PINFO_8},
+			PINFO_9 = #{PINFO_9},
+			PINFO_10 = #{PINFO_10}
+ 		WHERE PNUMBER = #{PNUMBER}
+ 	</update>
+ 	
+ 	<insert id="accountBanInsert" parameterType="Member">
+ 		INSERT INTO ACCOUNTBAN(MID, ABDATE)
+ 		VALUES(#{MID}, DEFAULT)
+ 	</insert>
+ 	
+ 	<select id="complaintBoardDetail" parameterType="Board" resultType="BoardComplaintDetail">
+ 		SELECT BC.*,
+		    B.MID,
+		    B.MNICK
+		FROM (SELECT BC.BNUMBER,
+		        BC.MID AS "BCMID",
+		        BC.BCREASON,
+		        BC.BCDATE,
+		        M.MNICK AS "BCMNICK"
+		    FROM BOARDCOMPLAINT BC INNER JOIN MEMBER M ON BC.MID = M.MID) BC
+		    INNER JOIN
+		    (SELECT B.BNUMBER,
+		        B.MID,
+		        M.MNICK
+		    FROM BOARD B INNER JOIN MEMBER M ON B.MID = M.MID) B ON BC.BNUMBER = B.BNUMBER
+		WHERE BC.BNUMBER = #{BNUMBER}
+ 	</select>
+ 	
+ 	<select id="complaintCommentsDetail" parameterType="Comments" resultType="CommentsComplaintDetail">
+ 		SELECT CC.*,
+			M.MNICK
+		FROM COMMENTSCOMPLAINT CC INNER JOIN MEMBER M ON CC.MID = M.MID
+		WHERE CC.CMBNUMBER = #{BNUMBER} AND CC.CMMID = #{MID} AND CC.CMDATE = TO_DATE(#{CMDATE}, 'YYYY-MM-DD HH24:MI:SS')
+ 	</select>
+ 	
+ 	<select id="boardCategoryCheck" parameterType="BoardCategory" resultType="String">
+ 		SELECT COUNT(BCNUMBER)
+ 		FROM BOARDCATEGORY
+ 		WHERE BCNAME = #{BCNAME}
+ 	</select>
+	
+ 	<update id="boardCategoryUpdate" parameterType="BoardCategory">
+ 		UPDATE BOARDCATEGORY
+		SET BCNAME = #{BCNAME}
+		WHERE BCNUMBER = #{BCNUMBER}
+ 	</update>
+ 	 	
+ 	<select id="categoryCheck" parameterType="Category" resultType="String">
+		SELECT COUNT(CNUMBER)
+		FROM CATEGORY
+		WHERE CNAME = #{CNAME}
+	</select>
+ 	
+ 	 <update id="categoryUpdate" parameterType="Category">
+ 		UPDATE CATEGORY
+		SET CNAME = #{CNAME}
+		WHERE CNUMBER = #{CNUMBER}
+ 	</update>
+ 	
+ 	<select id="memberInfo" parameterType="Member" resultType="MemberInfo">
+ 		SELECT M.*,
+				PO.POAMOUNT,
+		        AB.ABCOUNT,
+		        B.BCOUNT,
+		        CM.CMCOUNT,
+		        RV.RVCOUNT,
+		        RP.RPCOUNT
+		FROM MEMBER M LEFT OUTER JOIN (SELECT MID,
+		                            SUM(POAMOUNT * POSTATE) AS "POAMOUNT"
+		                        FROM POINT
+		                        GROUP BY MID) PO ON M.MID = PO.MID
+		            LEFT OUTER JOIN (SELECT MID,
+		                                COUNT(ABDATE) AS "ABCOUNT"
+		                            FROM ACCOUNTBAN
+		                            GROUP BY MID) AB ON M.MID = AB.MID
+		            LEFT OUTER JOIN (SELECT MID,
+		                                COUNT(BNUMBER) AS "BCOUNT"
+		                            FROM BOARD
+		                            GROUP BY MID) B ON M.MID = B.MID
+		            LEFT OUTER JOIN (SELECT MID,
+		                                COUNT(*) AS "CMCOUNT"
+		                            FROM COMMENTS
+		                            GROUP BY MID) CM ON M.MID = CM.MID
+		            LEFT OUTER JOIN (SELECT OMID,
+		                                COUNT(OMID) AS "RVCOUNT"
+		                            FROM REVIEW
+		                            GROUP BY OMID) RV ON M.MID = RV.OMID
+		            LEFT OUTER JOIN (SELECT OMID,
+		                                COUNT(OMID) AS "RPCOUNT"
+		                            FROM REVIEWPOST
+		                            GROUP BY OMID) RP ON M.MID = RP.OMID
+		WHERE M.MID = #{MID}
+ 	</select>
+ 	
+ 	<insert id="pointInsert" parameterType="Point">
+ 		INSERT INTO POINT(MID, PODATE, POAMOUNT, POSTATE, POINFO)
+ 		VALUES(#{MID}, DEFAULT, #{POAMOUNT}, #{POSTATE}, #{POINFO})
+ 	</insert>
+ 	
+ 	<select id="refundList" resultType="Orders">
+ 		SELECT O.MID,
+		    O.PNUMBER,
+		    O.ODATE,
+		    O.OADULT,
+		    O.OCHILD,
+		    O.OINFANT,
+		    O.OAMOUNT,
+		    O.OSTATE,
+		    O.PSSTART,
+		    M.MNICK,
+		    PS.PSEND
+		FROM ORDERS O INNER JOIN PACKAGESCHEDULE PS ON O.PNUMBER = PS.PNUMBER AND O.PSSTART = PS.PSSTART
+            		INNER JOIN MEMBER M ON O.MID = M.MID
+		WHERE OSTATE <![CDATA[<]]> 0
+ 	</select>
+ 	
+ 	<select id="refundDetail" parameterType="Orders" resultType="Orders">
+ 		SELECT O.MID,
+		    O.PNUMBER,
+		    O.ODATE,
+		    O.OADULT,
+		    O.OCHILD,
+		    O.OINFANT,
+		    O.OAMOUNT,
+		    O.OSTATE,
+		    O.PSSTART,
+		    M.MNICK,
+		    PS.PSEND
+		FROM ORDERS O INNER JOIN PACKAGESCHEDULE PS ON O.PNUMBER = PS.PNUMBER AND O.PSSTART = PS.PSSTART
+            		INNER JOIN MEMBER M ON O.MID = M.MID
+		WHERE O.MID = #{MID} AND O.PNUMBER = #{PNUMBER} AND O.ODATE = TO_DATE(#{ODATE},'YYYY-MM-DD HH24:MI:SS')
+ 	</select>
+ 	
+ 	<update id="refundUpdate" parameterType="Orders">
+ 		UPDATE ORDERS
+		SET OSTATE = #{OSTATE}
+		WHERE MID = #{MID} AND PNUMBER = #{PNUMBER} AND ODATE = TO_DATE(#{ODATE},'YYYY-MM-DD HH24:MI:SS')
+ 	</update>
+ 	
+ 	<select id="yearList" resultType="Orders">
+ 		SELECT TO_CHAR(ODATE, 'YYYY') AS "ODATE"
+		FROM ORDERS
+		GROUP BY TO_CHAR(ODATE, 'YYYY')
+		ORDER BY ODATE DESC
+ 	</select>
+ 	
+ 	<select id="monthlySalesList" parameterType="Orders" resultType="ShoppingList">
+ 		SELECT TO_CHAR(ODATE, 'MM') AS "ODATE",
+		    SUM(OAMOUNT) AS "OAMOUNT"
+		FROM ORDERS
+		<choose>
+			<when test="ODATE == null or ODATE.equals('')">
+				WHERE TO_CHAR(ODATE, 'YYYY') = TO_CHAR(SYSDATE, 'YYYY')
+			</when>
+			<otherwise>
+				WHERE TO_CHAR(ODATE, 'YYYY') = #{ODATE}			
+			</otherwise>
+		</choose>
+		GROUP BY TO_CHAR(ODATE, 'MM')
+		ORDER BY ODATE
+ 	</select>
+ 	
+ 	<select id="yearlySalesList" parameterType="Orders" resultType="ShoppingList">
+ 		SELECT TO_CHAR(ODATE,'YYYY') AS "ODATE",
+    		   SUM(OAMOUNT) AS "OAMOUNT"
+		FROM ORDERS
+		<choose>
+			<when test="ODATE == null or ODATE.equals('')">
+				WHERE TO_CHAR(ODATE, 'YYYY') = TO_CHAR(SYSDATE, 'YYYY')
+			</when>
+			<otherwise>
+				WHERE ODATE >= TO_DATE(#{ODATE}, 'YYYY')
+			</otherwise>
+		</choose>	
+		GROUP BY TO_CHAR(ODATE, 'YYYY')
+		ORDER BY ODATE
+ 	</select>
+ 	
+ 	<select id="packageSalesList" parameterType="Orders" resultType="ShoppingList">
+ 		SELECT P.PNAME AS "PNAME",
+		       SUM(O.OAMOUNT) AS "OAMOUNT"
+		FROM ORDERS O INNER JOIN PACKAGE P ON O.PNUMBER = P.PNUMBER
+		<choose>
+			<when test="ODATE == null or ODATE.equals('')">
+				WHERE TO_CHAR(O.ODATE, 'YYYY') = TO_CHAR(SYSDATE, 'YYYY')
+			</when>
+			<otherwise>
+				WHERE TO_CHAR(O.ODATE, 'YYYY') = #{ODATE}
+			</otherwise>
+		</choose>
+		GROUP BY P.PNAME
+		ORDER BY P.PNAME
+ 	</select>
+ 	
+ 	<select id="categorySales" parameterType="Orders" resultType="ShoppingList">
+ 		SELECT C.CNAME,
+		    SUM(O.OAMOUNT) AS "OAMOUNT"
+		FROM ORDERS O INNER JOIN PACKAGECATEGORY PC ON O.PNUMBER = PC.PNUMBER
+		    INNER JOIN CATEGORY C ON PC.CNUMBER = C.CNUMBER
+		<choose>
+			<when test="ODATE == null or ODATE.equals('')">
+				WHERE TO_CHAR(O.ODATE, 'YYYY') = TO_CHAR(SYSDATE, 'YYYY')
+			</when>
+			<otherwise>
+				WHERE TO_CHAR(O.ODATE, 'YYYY') = #{ODATE}
+			</otherwise>
+		</choose>
+		GROUP BY C.CNAME
+		ORDER BY C.CNAME
+ 	</select>
+ </mapper>

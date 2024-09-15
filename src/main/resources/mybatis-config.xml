@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE configuration PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+ "http://mybatis.org/dtd/mybatis-3-config.dtd">
+<configuration>
+	<typeAliases>
+		<typeAlias alias="Member" type="com.icia.TravelMaker.dto.MemberDTO"/>
+		<typeAlias alias="BoardCategory" type="com.icia.TravelMaker.dto.BoardCategoryDTO"/>
+		<typeAlias alias="Package" type="com.icia.TravelMaker.dto.PackageDTO"/>
+		<typeAlias alias="Board" type="com.icia.TravelMaker.dto.BoardDTO"/>
+		<typeAlias alias="AdminJobList" type="com.icia.TravelMaker.dto.AdminJobListDTO"/>
+		<typeAlias alias="MemberInfo" type="com.icia.TravelMaker.dto.MemberInfoDTO"/>
+		<typeAlias alias="Category" type="com.icia.TravelMaker.dto.CategoryDTO"/>
+		<typeAlias alias="BoardList" type="com.icia.TravelMaker.dto.BoardListDTO"/>
+		<typeAlias alias="BoardLike" type="com.icia.TravelMaker.dto.BoardLikeDTO"/>
+		<typeAlias alias="CartList" type="com.icia.TravelMaker.dto.CartListDTO"/>
+		<typeAlias alias="LikeList" type="com.icia.TravelMaker.dto.LikeListDTO"/>
+		<typeAlias alias="TravelerList" type="com.icia.TravelMaker.dto.TravelerListDTO"/>
+		<typeAlias alias="Point" type="com.icia.TravelMaker.dto.PointDTO"/>
+		<typeAlias alias="CommentsList" type="com.icia.TravelMaker.dto.CommentsListDTO"/>
+		<typeAlias alias="CommentsLike" type="com.icia.TravelMaker.dto.CommentsLikeDTO"/>
+		<typeAlias alias="ShoppingList" type="com.icia.TravelMaker.dto.ShoppingListDTO"/>
+		<typeAlias alias="MemberList" type="com.icia.TravelMaker.dto.MemberListDTO"/>
+		<typeAlias alias="Comments" type="com.icia.TravelMaker.dto.CommentsDTO"/>
+		<typeAlias alias="BoardDetail" type="com.icia.TravelMaker.dto.BoardDetailDTO"/>
+		<typeAlias alias="Review" type="com.icia.TravelMaker.dto.ReviewDTO"/>
+		<typeAlias alias="ReviewList" type="com.icia.TravelMaker.dto.ReviewListDTO"/>
+		<typeAlias alias="PackageDetail" type="com.icia.TravelMaker.dto.PackageDetailDTO"/>
+		<typeAlias alias="PackageSchedule" type="com.icia.TravelMaker.dto.PackageScheduleDTO"/>
+		<typeAlias alias="PackageLocation" type="com.icia.TravelMaker.dto.PackageLocationDTO"/>
+		<typeAlias alias="PackageCategory" type="com.icia.TravelMaker.dto.PackageCategoryDTO"/>
+		<typeAlias alias="BoardComplaintDetail" type="com.icia.TravelMaker.dto.BoardComplaintDetailDTO"/>
+		<typeAlias alias="BoardComplaint" type="com.icia.TravelMaker.dto.BoardComplaintDTO"/>
+		<typeAlias alias="CommentsComplaint" type="com.icia.TravelMaker.dto.CommentsComplaintDTO"/>
+		<typeAlias alias="CommentsComplaintDetail" type="com.icia.TravelMaker.dto.CommentsComplaintDetailDTO"/>
+		<typeAlias alias="Orders" type="com.icia.TravelMaker.dto.OrdersDTO"/>
+		<typeAlias alias="Traveler" type="com.icia.TravelMaker.dto.TravelerDTO"/>
+		<typeAlias alias="MemberPreference" type="com.icia.TravelMaker.dto.MemberPreferenceDTO"/>
+		<typeAlias alias="ReviewPost" type="com.icia.TravelMaker.dto.ReviewPostDTO"/>
+		<typeAlias alias="ReviewPostDetail" type="com.icia.TravelMaker.dto.ReviewPostDetailDTO"/>
+		<typeAlias alias="Page" type="com.icia.TravelMaker.dto.PageDTO"/>
+		<typeAlias alias="Search" type="com.icia.TravelMaker.dto.SearchDTO"/>
+	</typeAliases>
+</configuration>

@@ -1,0 +1,381 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+ "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+ <mapper namespace="Board">
+ 	<insert id="boardInsert">
+ 		INSERT INTO BOARD(BNUMBER, MID, BDATE, BTITLE, BCONTENT, BCNUMBER, BSTATE)
+ 		VALUES(BNUMBER_SEQ.NEXTVAL, #{MID}, SYSDATE, #{BTITLE}, #{BCONTENT}, #{BCNUMBER}, 1)
+ 	</insert>
+ 	
+ 	<select id="boardListCount" parameterType="Board" resultType="INTEGER">
+ 		SELECT COUNT(B.BNUMBER)
+ 		FROM BOARD B INNER JOIN BOARDCATEGORY BC ON B.BCNUMBER = BC.BCNUMBER
+ 		<choose>
+ 			<when test="BCNUMBER != 0">
+ 				WHERE B.BCNUMBER = #{BCNUMBER}
+ 			</when>
+ 			<otherwise>
+ 				WHERE BC.BCSTATE = 1
+ 			</otherwise>
+ 		</choose>
+ 	</select>
+ 	
+ 	<select id="searchBoardListCount" parameterType="java.util.Map" resultType="INTEGER">
+ 		SELECT COUNT(B.BNUMBER)
+		FROM BOARD B INNER JOIN MEMBER M ON B.MID = M.MID
+    		INNER JOIN BOARDCATEGORY BC ON B.BCNUMBER = BC.BCNUMBER
+		<choose>
+ 			<when test="board.BCNUMBER != 0">
+ 				WHERE B.BCNUMBER = #{board.BCNUMBER}
+ 			</when>
+ 			<otherwise>
+ 				WHERE BC.BCSTATE = 1
+ 			</otherwise>
+ 		</choose>
+		<choose>
+			<when test="search.searchType.equals('all')">
+				AND (B.BTITLE LIKE '%' || #{search.keyWord} || '%' OR B.BCONTENT LIKE '%' || #{search.keyWord} || '%' OR M.MNICK LIKE '%' || #{search.keyWord} || '%')
+			</when>
+			<when test="search.searchType.equals('BTITLE')">
+				AND B.BTITLE LIKE '%' || #{search.keyWord} || '%'
+			</when>
+			<when test="search.searchType.equals('BCONTENT')">
+				AND B.BCONTENT LIKE '%' || #{search.keyWord} || '%'
+			</when>
+			<when test="search.searchType.equals('MNICK')">
+				AND M.MNICK LIKE '%' || #{search.keyWord} || '%'
+			</when>
+			<when test="search.searchType.equals('BTITLE,BCONTENT')">
+				AND (B.BTITLE LIKE '%' || #{search.keyWord} || '%' OR B.BCONTENT LIKE '%' || #{search.keyWord} || '%')
+			</when>
+		</choose>
+ 	</select>
+ 	
+ 	<select id="boardList" parameterType="java.util.Map" resultType="BoardList">
+ 		SELECT *
+		FROM (SELECT <choose>
+						<when test="order.equals('BNUMBER')">
+							ROW_NUMBER() OVER(ORDER BY B.BNUMBER DESC) "RN",	
+						</when>
+						<when test="order.equals('BOARDVIEWS')">
+							ROW_NUMBER() OVER(ORDER BY NVL(BV.BOARDVIEWS, 0) DESC) "RN",	
+						</when>
+						<when test="order.equals('BOARDLIKE')">
+							ROW_NUMBER() OVER(ORDER BY NVL(BL.BOARDLIKE, 0) DESC) "RN",	
+						</when>
+					</choose>
+		 				B.BNUMBER,
+		    			B.BTITLE,
+		    			B.BDATE,
+		    			B.BSTATE,
+		    			BC.BCNAME,
+		    			M.MNICK,
+		    			BV.BOARDVIEWS,
+		    			BL.BOARDLIKE,
+		    			BC.BOARDCOMPLAINT
+				FROM BOARD B INNER JOIN MEMBER M ON B.MID = M.MID
+		            		INNER JOIN BOARDCATEGORY BC ON B.BCNUMBER = BC.BCNUMBER
+		           			LEFT OUTER JOIN (SELECT BNUMBER,
+		                                			COUNT(*) AS "BOARDVIEWS"
+		                        			FROM BOARDVIEWS
+		                        			GROUP BY BNUMBER) BV ON B.BNUMBER = BV.BNUMBER
+		            		LEFT OUTER JOIN (SELECT BNUMBER,
+		                                    		COUNT(MID) AS "BOARDLIKE"
+		                            		FROM BOARDLIKE
+		                            		GROUP BY BNUMBER) BL ON B.BNUMBER = BL.BNUMBER
+		            		LEFT OUTER JOIN (SELECT BNUMBER,
+		                                    		COUNT(MID) AS "BOARDCOMPLAINT"
+		                            		FROM BOARDCOMPLAINT
+		                            		GROUP BY BNUMBER) BC ON B.BNUMBER = BC.BNUMBER
+		 		<choose>
+		 			<when test="board.BCNUMBER != 0">
+		 				WHERE B.BCNUMBER = #{board.BCNUMBER}
+		 			</when>
+		 			<otherwise>
+		 				WHERE BC.BCSTATE = 1
+		 			</otherwise>
+		 		</choose>)
+		WHERE RN BETWEEN #{page.start} AND #{page.end}
+ 	</select>
+ 	
+ 	<select id="searchBoardList" parameterType="java.util.Map" resultType="BoardList">
+ 		SELECT *
+		FROM (SELECT <choose>
+						<when test="order.equals('BNUMBER')">
+							ROW_NUMBER() OVER(ORDER BY B.BNUMBER DESC) "RN",	
+						</when>
+						<when test="order.equals('BOARDVIEWS')">
+							ROW_NUMBER() OVER(ORDER BY NVL(BV.BOARDVIEWS, 0) DESC) "RN",	
+						</when>
+						<when test="order.equals('BOARDLIKE')">
+							ROW_NUMBER() OVER(ORDER BY NVL(BL.BOARDLIKE, 0) DESC) "RN",	
+						</when>
+					</choose>
+		 				B.BNUMBER,
+		    			B.BTITLE,
+		    			B.BDATE,
+		    			B.BSTATE,
+		    			BC.BCNAME,
+		    			M.MNICK,
+		    			BV.BOARDVIEWS,
+		    			BL.BOARDLIKE,
+		    			BC.BOARDCOMPLAINT
+				FROM BOARD B INNER JOIN MEMBER M ON B.MID = M.MID
+		            		INNER JOIN BOARDCATEGORY BC ON B.BCNUMBER = BC.BCNUMBER
+		           			LEFT OUTER JOIN (SELECT BNUMBER,
+		                                			COUNT(*) AS "BOARDVIEWS"
+		                        			FROM BOARDVIEWS
+		                        			GROUP BY BNUMBER) BV ON B.BNUMBER = BV.BNUMBER
+		            		LEFT OUTER JOIN (SELECT BNUMBER,
+		                                    		COUNT(MID) AS "BOARDLIKE"
+		                            		FROM BOARDLIKE
+		                            		GROUP BY BNUMBER) BL ON B.BNUMBER = BL.BNUMBER
+		            		LEFT OUTER JOIN (SELECT BNUMBER,
+		                                    		COUNT(MID) AS "BOARDCOMPLAINT"
+		                            		FROM BOARDCOMPLAINT
+		                            		GROUP BY BNUMBER) BC ON B.BNUMBER = BC.BNUMBER
+		 		<choose>
+		 			<when test="board.BCNUMBER != 0">
+		 				WHERE B.BCNUMBER = #{board.BCNUMBER}
+		 			</when>
+		 			<otherwise>
+		 				WHERE BC.BCSTATE = 1
+		 			</otherwise>
+		 		</choose>
+		 		<choose>
+					<when test="search.searchType.equals('all')">
+						AND (B.BTITLE LIKE '%' || #{search.keyWord} || '%' OR B.BCONTENT LIKE '%' || #{search.keyWord} || '%' OR M.MNICK LIKE '%' || #{search.keyWord} || '%')
+					</when>
+					<when test="search.searchType.equals('BTITLE')">
+						AND B.BTITLE LIKE '%' || #{search.keyWord} || '%'
+					</when>
+					<when test="search.searchType.equals('BCONTENT')">
+						AND B.BCONTENT LIKE '%' || #{search.keyWord} || '%'
+					</when>
+					<when test="search.searchType.equals('MNICK')">
+						AND M.MNICK LIKE '%' || #{search.keyWord} || '%'
+					</when>
+					<when test="search.searchType.equals('BTITLE,BCONTENT')">
+						AND (B.BTITLE LIKE '%' || #{search.keyWord} || '%' OR B.BCONTENT LIKE '%' || #{search.keyWord} || '%')
+					</when>
+				</choose>)
+		WHERE RN BETWEEN #{page.start} AND #{page.end}
+ 	</select>
+ 	
+ 	<select id="boardCategory" parameterType="Board" resultType="BoardCategory">
+ 		SELECT *
+ 		FROM BOARDCATEGORY
+ 		WHERE BCNUMBER = #{BCNUMBER}
+ 	</select>
+ 	
+ 	<insert id="boardViewsInsert" parameterType="Board">
+ 		INSERT INTO BOARDVIEWS(BNUMBER, MID, BVDATE)
+ 		VALUES(#{BNUMBER}, #{MID}, DEFAULT)
+ 	</insert>
+ 	
+ 	<select id="boardDetail" parameterType="Board" resultType="BoardDetail">
+ 		SELECT B.*,
+		    M.MNICK,
+		    BV.BOARDVIEWS,
+		    BL.BOARDLIKE
+		FROM BOARD B INNER JOIN MEMBER M ON B.MID = M.MID
+		            LEFT OUTER JOIN (SELECT BNUMBER,
+		                                COUNT(*) AS "BOARDVIEWS"
+		                            FROM BOARDVIEWS
+		                            GROUP BY BNUMBER) BV ON B.BNUMBER = BV.BNUMBER
+		            LEFT OUTER JOIN (SELECT BNUMBER,
+		                                COUNT(MID) AS "BOARDLIKE"
+		                            FROM BOARDLIKE
+		                            GROUP BY BNUMBER) BL ON B.BNUMBER = BL.BNUMBER
+		WHERE B.BNUMBER = #{BNUMBER}
+ 	</select>
+ 	
+ 	<select id="commentsList" parameterType="Board" resultType="CommentsList">
+ 		SELECT CM.*,
+		    B.BTITLE,
+		    M.MNICK,
+		    CL.COMMENTSLIKE,
+		    CC.COMMENTSCOMPLAINT
+		FROM COMMENTS CM INNER JOIN BOARD B ON CM.BNUMBER = B.BNUMBER
+		                INNER JOIN MEMBER M ON CM.MID = M.MID
+		                LEFT OUTER JOIN (SELECT CMBNUMBER,
+		                                    CMMID,
+		                                    CMDATE,
+		                                    COUNT(MID) AS "COMMENTSLIKE"
+		                                FROM COMMENTSLIKE
+		                                GROUP BY CMBNUMBER, CMMID, CMDATE) CL ON CM.BNUMBER = CL.CMBNUMBER AND CM.MID = CL.CMMID AND CM.CMDATE = CL.CMDATE
+		                LEFT OUTER JOIN (SELECT CMBNUMBER,
+		                                    CMMID,
+		                                    CMDATE,
+		                                    COUNT(MID) AS "COMMENTSCOMPLAINT"
+		                                FROM COMMENTSCOMPLAINT
+		                                GROUP BY CMBNUMBER, CMMID, CMDATE) CC ON CM.BNUMBER = CC.CMBNUMBER AND CM.MID = CC.CMMID AND CM.CMDATE = CC.CMDATE
+		WHERE CM.BNUMBER = #{BNUMBER}
+		ORDER BY CM.CMDATE DESC
+ 	</select>
+ 	
+ 	<insert id="commentsInsert" parameterType="Comments">
+ 		INSERT INTO COMMENTS(BNUMBER, MID, CMDATE, CMCONTENT, CMSTATE)
+		VALUES(#{BNUMBER}, #{MID}, DEFAULT, #{CMCONTENT}, 1)
+ 	</insert>
+ 	
+ 	<update id="commentsLock" parameterType="Comments">
+ 		UPDATE COMMENTS SET CMSTATE = #{CMSTATE} WHERE BNUMBER = #{BNUMBER} AND MID = #{MID} AND CMDATE = #{CMDATE}
+ 	</update>
+ 	
+ 	<update id="boardUpdate" parameterType="Board">
+ 		UPDATE BOARD
+		SET BTITLE = #{BTITLE}, BCONTENT = #{BCONTENT}, BCNUMBER = #{BCNUMBER}
+		WHERE BNUMBER = #{BNUMBER}
+ 	</update>
+ 	
+ 	<insert id="boardComplaintInsert" parameterType="BoardComplaint">
+ 		INSERT INTO BOARDCOMPLAINT(BNUMBER, MID, BCREASON, BCDATE)
+ 		VALUES(#{BNUMBER}, #{MID}, #{BCREASON}, DEFAULT)
+ 	</insert>
+ 	
+ 	<insert id="commentsComplaintInsert" parameterType="CommentsComplaint">
+ 		INSERT INTO COMMENTSCOMPLAINT(CMBNUMBER, CMMID, CMDATE, MID, CCREASON, CCDATE)
+ 		VALUES(#{CMBNUMBER}, #{CMMID}, TO_DATE(#{CMDATE}, 'YYYY-MM-DD HH24:MI:SS'), #{MID}, #{CCREASON}, DEFAULT)
+ 	</insert>
+ 	
+ 	<select id="boardLike" parameterType="Board" resultType="INTEGER">
+ 		SELECT COUNT(BNUMBER)
+		FROM BOARDLIKE
+		WHERE BNUMBER=#{BNUMBER} AND MID=#{MID}
+ 	</select>
+ 	
+ 	<insert id="boardLikeInsert" parameterType="BoardLike">
+ 		INSERT INTO BOARDLIKE(BNUMBER, MID, BLDATE)
+ 		VALUES(#{BNUMBER}, #{MID}, DEFAULT)
+ 	</insert>
+ 	
+ 	<delete id="boardLikeDelete" parameterType="BoardLike">
+ 		DELETE FROM BOARDLIKE WHERE MID = #{MID} AND BNUMBER = #{BNUMBER}
+ 	</delete>
+ 	
+ 	<select id="commentsLike" parameterType="Board" resultType="CommentsLike">
+ 		SELECT CMBNUMBER,
+		    CMMID,
+		    CMDATE
+		FROM COMMENTSLIKE
+		WHERE CMBNUMBER = #{BNUMBER} AND MID = #{MID}
+ 	</select>
+ 	
+ 	<insert id="commentsLikeInsert" parameterType="CommentsLike">
+ 		INSERT INTO COMMENTSLIKE(CMBNUMBER, CMMID, CMDATE, MID, CLDATE)
+ 		VALUES(#{CMBNUMBER}, #{CMMID}, TO_DATE(#{CMDATE}, 'YYYY-MM-DD HH24:MI:SS'), #{MID}, DEFAULT)
+ 	</insert>
+ 	
+ 	<delete id="commentsLikeDelete" parameterType="CommentsLike">
+ 		DELETE FROM COMMENTSLIKE WHERE CMBNUMBER = #{CMBNUMBER} AND CMMID = #{CMMID} AND CMDATE = TO_DATE(#{CMDATE}, 'YYYY-MM-DD HH24:MI:SS') AND MID = #{MID}
+ 	</delete>
+ 	
+ 	<select id="commentsLikeResult" parameterType="CommentsLike" resultType="INTEGER">
+ 		SELECT COUNT(MID)
+		FROM COMMENTSLIKE
+		WHERE CMBNUMBER = #{CMBNUMBER} AND CMMID = #{CMMID} AND CMDATE = TO_DATE(#{CMDATE}, 'YYYY-MM-DD HH24:MI:SS')
+ 	</select>
+ 	
+ 	<insert id="reviewPostInsert" parameterType="ReviewPost">
+ 		INSERT INTO REVIEWPOST(OPNUMBER, OMID, ODATE, RPDATE, RPTITLE, RPSTATE, RPCONTENT, RPIMG)
+ 		VALUES(#{OPNUMBER}, #{OMID}, TO_DATE(#{ODATE}, 'YYYY-MM-DD HH24:MI:SS'), DEFAULT,  #{RPTITLE}, 1, #{RPCONTENT}, #{RPIMG})
+ 	</insert>
+ 	
+ 	<update id="reviewPostUpdate" parameterType="ReviewPost">
+ 		UPDATE REVIEWPOST
+		SET RPTITLE = #{RPTITLE}, RPCONTENT = #{RPCONTENT}
+ 		WHERE OPNUMBER = #{OPNUMBER} AND OMID = #{OMID} AND ODATE = TO_DATE(#{ODATE}, 'YYYY-MM-DD HH24:MI:SS')
+ 	</update>
+ 	
+ 	<select id="reviewPostCount" parameterType="Member" resultType="INTEGER">
+ 		SELECT COUNT(OMID)
+ 		FROM REVIEWPOST
+ 		<if test="MID != null and !MID.equals('')">
+ 			WHERE OMID = #{MID}
+ 		</if>
+ 	</select>
+ 	
+ 	<select id="searchReviewPostCount" parameterType="java.util.Map" resultType="INTEGER">
+ 		SELECT COUNT(OMID)
+ 		FROM REVIEWPOST
+ 		<choose>
+ 			<when test="search.searchType.equals('RPTITLE')">
+				WHERE RPTITLE LIKE '%' || #{search.keyWord} || '%'
+			</when>
+			<when test="search.searchType.equals('RPCONTENT')">
+				WHERE RPCONTENT LIKE '%' || #{search.keyWord} || '%'
+			</when>
+			<when test="search.searchType.equals('all')">
+				WHERE (RPTITLE LIKE '%' || #{search.keyWord} || '%' OR RPCONTENT LIKE '%' || #{search.keyWord} || '%')
+			</when>
+ 		</choose>
+ 		<if test="member != null">
+ 			AND OMID = #{member.MID}
+ 		</if>
+ 	</select>
+ 	
+ 	<select id="reviewPostList" parameterType="java.util.Map" resultType="ReviewPost">
+	 	SELECT *
+	 	FROM (SELECT REVIEWPOST.*,
+	 			ROW_NUMBER() OVER(ORDER BY RPDATE DESC) RN
+	 		FROM REVIEWPOST
+	 		<if test="member != null">
+	 			WHERE OMID = #{member.MID}
+	 		</if>)
+	 	WHERE RN BETWEEN #{page.start} AND #{page.end}
+ 	</select>
+ 	
+ 	<select id="searchReviewPostList" parameterType="java.util.Map" resultType="ReviewPost">
+ 		SELECT *
+	 	FROM (SELECT REVIEWPOST.*,
+	 			ROW_NUMBER() OVER(ORDER BY RPDATE DESC) RN
+	 		FROM REVIEWPOST
+	 		<choose>
+	 			<when test="search.searchType.equals('RPTITLE')">
+					WHERE RPTITLE LIKE '%' || #{search.keyWord} || '%'
+				</when>
+				<when test="search.searchType.equals('RPCONTENT')">
+					WHERE RPCONTENT LIKE '%' || #{search.keyWord} || '%'
+				</when>
+				<when test="search.searchType.equals('all')">
+					WHERE (RPTITLE LIKE '%' || #{search.keyWord} || '%' OR RPCONTENT LIKE '%' || #{search.keyWord} || '%')
+				</when>
+	 		</choose>
+	 		<if test="member != null">
+	 			AND OMID = #{member.MID}
+	 		</if>)
+	 	WHERE RN BETWEEN #{page.start} AND #{page.end}
+ 	</select>
+ 	
+ 	<select id="reviewPostDetail" parameterType="ReviewPost" resultType="ReviewPostDetail">
+ 		SELECT RP.*,
+		    M.MNICK
+		FROM REVIEWPOST RP INNER JOIN MEMBER M ON RP.OMID = M.MID
+		WHERE RP.OPNUMBER = #{OPNUMBER} AND RP.OMID = #{OMID} AND RP.ODATE = TO_DATE(#{ODATE}, 'YYYY-MM-DD HH24:MI:SS')
+ 	</select>
+ 	
+ 	<select id="nextBoardDetail" parameterType="java.util.Map" resultType="INTEGER">
+ 		SELECT <choose>
+			<when test="next == 1">
+				NVL(MIN(BNUMBER), 0)
+			</when>
+			<otherwise>
+				NVL(MAX(BNUMBER), 0)
+			</otherwise>
+		</choose>
+		FROM BOARD
+		<choose>
+			<when test="next == 1">
+				WHERE BNUMBER <![CDATA[>]]> #{board.BNUMBER} AND BSTATE = 1
+			</when>
+			<otherwise>
+				WHERE BNUMBER <![CDATA[<]]> #{board.BNUMBER} AND BSTATE = 1
+			</otherwise>
+		</choose>
+		<if test="board.BCNUMBER != 0">
+			AND BCNUMBER = #{board.BCNUMBER}
+		</if>
+ 	</select>
+ </mapper>

@@ -1,0 +1,413 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+ "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+ <mapper namespace="Member">
+ 	<select id="login" parameterType="Member" resultType="Member">
+ 		SELECT MID,
+			MNICK,
+			MLEVEL
+		FROM MEMBER
+		WHERE MID = #{MID} AND MPW = #{MPW} AND MSTATE = 1
+ 	</select>
+ 	
+ 	<insert id="accessInsert" parameterType="Member">
+ 		INSERT INTO ACCESSHISTORY(MID, AHDATE)
+ 		VALUES(#{MID}, DEFAULT)
+ 	</insert>
+ 	
+ 	<select id="myPage" parameterType="Member" resultType="MemberInfo">
+ 		SELECT M.*,
+				PO.POAMOUNT,
+		        AB.ABCOUNT,
+		        B.BCOUNT,
+		        CM.CMCOUNT,
+		        RV.RVCOUNT,
+		        RP.RPCOUNT
+		FROM MEMBER M LEFT OUTER JOIN (SELECT MID,
+		                            SUM(POAMOUNT * POSTATE) AS "POAMOUNT"
+		                        FROM POINT
+		                        GROUP BY MID) PO ON M.MID = PO.MID
+		            LEFT OUTER JOIN (SELECT MID,
+		                                COUNT(ABDATE) AS "ABCOUNT"
+		                            FROM ACCOUNTBAN
+		                            GROUP BY MID) AB ON M.MID = AB.MID
+		            LEFT OUTER JOIN (SELECT B.MID,
+		                                COUNT(B.BNUMBER) AS "BCOUNT"
+		                            FROM BOARD B INNER JOIN BOARDCATEGORY BC ON B.BCNUMBER = BC.BCNUMBER
+		                            WHERE BC.BCSTATE = 1 AND B.BSTATE = 1
+		                            GROUP BY B.MID) B ON M.MID = B.MID
+		            LEFT OUTER JOIN (SELECT MID,
+		                                COUNT(*) AS "CMCOUNT"
+		                            FROM COMMENTS
+		                            WHERE CMSTATE = 1
+		                            GROUP BY MID) CM ON M.MID = CM.MID
+		            LEFT OUTER JOIN (SELECT OMID,
+		                                COUNT(OMID) AS "RVCOUNT"
+		                            FROM REVIEW
+		                            GROUP BY OMID) RV ON M.MID = RV.OMID
+		            LEFT OUTER JOIN (SELECT OMID,
+		                                COUNT(OMID) AS "RPCOUNT"
+		                            FROM REVIEWPOST
+		                            GROUP BY OMID) RP ON M.MID = RP.OMID
+		WHERE M.MID = #{MID}
+ 	</select>
+ 	
+ 	<select id="idCheck" parameterType="Member" resultType="String">
+ 		SELECT COUNT(MID)
+ 		FROM MEMBER
+ 		WHERE MID = #{MID}
+ 	</select>
+ 	
+ 	<select id="nickCheck" parameterType="Member" resultType="String">
+ 		SELECT COUNT(MID)
+ 		FROM MEMBER
+ 		WHERE MNICK = #{MNICK}
+ 	</select>
+ 	
+ 	<insert id="memberJoin" parameterType="Member">
+ 		INSERT INTO MEMBER(MID, MPW, MNAME, MPHONE, MGENDER, MBIRTH, MLEVEL, MSTATE, MNICK, MDATE)
+ 		VALUES(#{MID}, #{MPW}, #{MNAME}, #{MPHONE}, #{MGENDER}, #{MBIRTH}, #{MLEVEL}, <choose><when test="MLEVEL == 0">1</when><otherwise>0</otherwise></choose>, #{MNICK}, DEFAULT)
+ 	</insert>
+ 	
+ 	<select id="joinConfirm" parameterType="Member" statementType="CALLABLE">
+ 		{ CALL JOINCONFIRM(
+		    #{MID, mode=IN},
+		    #{MSTATE, mode=IN},
+		    #{AUTHKEY, mode=IN},
+		    #{MNICK, mode=OUT, jdbcType=NCHAR},
+		    #{MLEVEL, mode=OUT, jdbcType=INTEGER}) }
+ 	</select>
+ 	
+ 	<select id="memberDelete" parameterType="Member" statementType="CALLABLE">
+ 		{ CALL MEMBERDELETE(#{MID, mode=IN}) }
+ 	</select>
+ 	
+ 	<update id="authKeyUpdate" parameterType="Member">
+ 		UPDATE MEMBER SET AUTHKEY = #{AUTHKEY} WHERE MID = #{MID}
+ 	</update>
+ 	
+ 	<select id="preferenceList" parameterType="Member" resultType="Category">
+ 		SELECT MP.CNUMBER,
+    		C.CNAME
+		FROM MEMBERPREFERENCE MP INNER JOIN CATEGORY C ON MP.CNUMBER = C.CNUMBER
+		WHERE MID = #{MID}
+		ORDER BY MP.CNUMBER
+ 	</select>
+ 	
+ 	<select id="cartCount" parameterType="Member" resultType="INTEGER">
+		SELECT COUNT(MID)
+		FROM PACKAGECART
+		WHERE MID = #{MID}
+ 	</select>
+ 	
+ 	<select id="cartList" parameterType="java.util.Map" resultType="CartList">
+ 		SELECT *
+ 		FROM (SELECT ROW_NUMBER() OVER(ORDER BY PC.PSSTART DESC) RN, 
+	 			PC.*,
+			    PS.PSEND,
+			    P.PNAME,
+			    P.PIMG
+			FROM PACKAGECART PC INNER JOIN PACKAGE P ON PC.PNUMBER = P.PNUMBER
+			    INNER JOIN PACKAGESCHEDULE PS ON PC.PNUMBER = PS.PNUMBER AND PC.PSSTART = PS.PSSTART
+			WHERE MID= #{member.MID})
+		WHERE RN BETWEEN #{page.start} AND #{page.end}
+ 	</select>
+ 	
+ 	<select id="likeCount" parameterType="Member" resultType="INTEGER">
+		SELECT COUNT(MID)
+		FROM PACKAGELIKE
+		WHERE MID = #{MID}
+	</select>
+ 	
+ 	<select id="likeList" parameterType="java.util.Map" resultType="LikeList">
+ 		SELECT *
+ 		FROM (SELECT ROW_NUMBER() OVER(ORDER BY P.PNUMBER DESC) RN, 
+	 			P.PNAME,
+			    PL.PNUMBER,
+			    PL.MID,
+			    P.PIMG
+			FROM PACKAGELIKE PL INNER JOIN PACKAGE P ON PL.PNUMBER = P.PNUMBER
+			WHERE PL.MID = #{member.MID})
+		WHERE RN BETWEEN #{page.start} AND #{page.end}
+ 	</select>
+ 	
+ 	<select id="myBoardListCount" parameterType="Board" resultType="INTEGER">
+ 		SELECT COUNT(B.BNUMBER)
+ 		FROM BOARD B INNER JOIN BOARDCATEGORY BC ON B.BCNUMBER = BC.BCNUMBER
+ 		WHERE B.MID = #{MID} AND BC.BCSTATE = 1
+ 	</select>
+ 	
+ 	<select id="searchMyBoardListCount" parameterType="java.util.Map" resultType="INTEGER">
+ 		SELECT COUNT(B.BNUMBER)
+ 		FROM BOARD B INNER JOIN BOARDCATEGORY BC ON B.BCNUMBER = BC.BCNUMBER
+ 		WHERE B.MID = #{board.MID} AND BC.BCSTATE = 1
+ 		<choose>
+			<when test="search.searchType.equals('BTITLE')">
+				AND B.BTITLE LIKE '%' || #{search.keyWord} || '%'
+			</when>
+			<when test="search.searchType.equals('BCONTENT')">
+				AND B.BCONTENT LIKE '%' || #{search.keyWord} || '%'
+			</when>
+			<when test="search.searchType.equals('BTITLE,BCONTENT')">
+				AND (B.BTITLE LIKE '%' || #{search.keyWord} || '%' OR B.BCONTENT LIKE '%' || #{search.keyWord} || '%')
+			</when>
+		</choose>
+ 	</select>
+ 	
+ 	<select id="myBoardList" parameterType="java.util.Map" resultType="BoardList">
+	 	SELECT *
+	 	FROM (SELECT <choose>
+						<when test="order.equals('BNUMBER')">
+							ROW_NUMBER() OVER(ORDER BY B.BNUMBER DESC) "RN",	
+						</when>
+						<when test="order.equals('BOARDVIEWS')">
+							ROW_NUMBER() OVER(ORDER BY NVL(BV.BOARDVIEWS, 0) DESC) "RN",	
+						</when>
+						<when test="order.equals('BOARDLIKE')">
+							ROW_NUMBER() OVER(ORDER BY NVL(BL.BOARDLIKE, 0) DESC) "RN",	
+						</when>
+					</choose>
+	 				B.BNUMBER,
+	    			B.BTITLE,
+	    			B.BDATE,
+	    			B.BSTATE,
+	    			BC.BCNAME,
+	    			M.MNICK,
+	    			BV.BOARDVIEWS,
+	    			BL.BOARDLIKE,
+	    			BC.BOARDCOMPLAINT
+			FROM BOARD B INNER JOIN MEMBER M ON B.MID = M.MID
+	            	INNER JOIN BOARDCATEGORY BC ON B.BCNUMBER = BC.BCNUMBER
+	           		LEFT OUTER JOIN (SELECT BNUMBER,
+	                                		COUNT(MID) AS "BOARDVIEWS"
+	                        		FROM BOARDVIEWS
+	                        		GROUP BY BNUMBER) BV ON B.BNUMBER = BV.BNUMBER
+	            	LEFT OUTER JOIN (SELECT BNUMBER,
+	                                    	COUNT(MID) AS "BOARDLIKE"
+	                            	FROM BOARDLIKE
+	                            	GROUP BY BNUMBER) BL ON B.BNUMBER = BL.BNUMBER
+	            	LEFT OUTER JOIN (SELECT BNUMBER,
+	                                    	COUNT(MID) AS "BOARDCOMPLAINT"
+	                            	FROM BOARDCOMPLAINT
+	                            	GROUP BY BNUMBER) BC ON B.BNUMBER = BC.BNUMBER
+	    	WHERE B.MID = #{board.MID} AND  BC.BCSTATE = 1)
+	    WHERE RN BETWEEN #{page.start} AND #{page.end}
+ 	</select>
+ 	
+ 	<select id="searchMyBoardList" parameterType="java.util.Map" resultType="BoardList">
+ 		SELECT *
+	 	FROM (SELECT <choose>
+						<when test="order.equals('BNUMBER')">
+							ROW_NUMBER() OVER(ORDER BY B.BNUMBER DESC) "RN",	
+						</when>
+						<when test="order.equals('BOARDVIEWS')">
+							ROW_NUMBER() OVER(ORDER BY NVL(BV.BOARDVIEWS, 0) DESC) "RN",	
+						</when>
+						<when test="order.equals('BOARDLIKE')">
+							ROW_NUMBER() OVER(ORDER BY NVL(BL.BOARDLIKE, 0) DESC) "RN",	
+						</when>
+					</choose>
+	 				B.BNUMBER,
+	    			B.BTITLE,
+	    			B.BDATE,
+	    			B.BSTATE,
+	    			BC.BCNAME,
+	    			M.MNICK,
+	    			BV.BOARDVIEWS,
+	    			BL.BOARDLIKE,
+	    			BC.BOARDCOMPLAINT
+			FROM BOARD B INNER JOIN MEMBER M ON B.MID = M.MID
+	            	INNER JOIN BOARDCATEGORY BC ON B.BCNUMBER = BC.BCNUMBER
+	           		LEFT OUTER JOIN (SELECT BNUMBER,
+	                                		COUNT(MID) AS "BOARDVIEWS"
+	                        		FROM BOARDVIEWS
+	                        		GROUP BY BNUMBER) BV ON B.BNUMBER = BV.BNUMBER
+	            	LEFT OUTER JOIN (SELECT BNUMBER,
+	                                    	COUNT(MID) AS "BOARDLIKE"
+	                            	FROM BOARDLIKE
+	                            	GROUP BY BNUMBER) BL ON B.BNUMBER = BL.BNUMBER
+	            	LEFT OUTER JOIN (SELECT BNUMBER,
+	                                    	COUNT(MID) AS "BOARDCOMPLAINT"
+	                            	FROM BOARDCOMPLAINT
+	                            	GROUP BY BNUMBER) BC ON B.BNUMBER = BC.BNUMBER
+	    	WHERE B.MID = #{board.MID} AND  BC.BCSTATE = 1
+	    	<choose>
+				<when test="search.searchType.equals('BTITLE')">
+					AND B.BTITLE LIKE '%' || #{search.keyWord} || '%'
+				</when>
+				<when test="search.searchType.equals('BCONTENT')">
+					AND B.BCONTENT LIKE '%' || #{search.keyWord} || '%'
+				</when>
+				<when test="search.searchType.equals('BTITLE,BCONTENT')">
+					AND (B.BTITLE LIKE '%' || #{search.keyWord} || '%' OR B.BCONTENT LIKE '%' || #{search.keyWord} || '%')
+				</when>
+			</choose>)
+	    WHERE RN BETWEEN #{page.start} AND #{page.end}
+ 	</select>
+ 	
+ 	<select id="pointHistoryCount" parameterType="Member" resultType="INTEGER">
+		SELECT COUNT(MID)
+		FROM POINT
+		WHERE MID = #{MID}
+ 	</select>
+ 	
+ 	<select id="pointHistory" parameterType="java.util.Map" resultType="Point">
+ 		SELECT *
+ 		FROM (SELECT ROW_NUMBER() OVER(ORDER BY PODATE DESC) RN,
+	 				POINT.*
+	 		FROM POINT
+	 		WHERE MID = #{member.MID})
+ 		WHERE RN BETWEEN  #{page.start} AND #{page.end}
+ 	</select>
+ 	
+ 	<select id="shoppingListCount" parameterType="Orders" resultType="INTEGER">
+		SELECT COUNT(MID)
+		FROM ORDERS
+		<choose>
+ 			<when test="OSTATE == 1">
+ 				WHERE OSTATE = #{OSTATE} AND MID = #{MID}
+ 			</when>
+ 			<when test="OSTATE == 0">
+ 				WHERE OSTATE != 1 AND MID = #{MID}
+ 			</when>
+ 		</choose>
+ 	</select>
+ 	
+ 	<select id="shoppingList" parameterType="java.util.Map" resultType="ShoppingList">
+ 		SELECT *
+ 		FROM (SELECT	ROW_NUMBER() OVER(ORDER BY O.ODATE DESC) RN, 
+	 			O.*,
+			    P.PIMG,
+			    P.PNAME,
+			    PS.PSEND,
+			    PLO.PLONAME,
+			    ((O.OADULT*P.PADULT)+(O.OCHILD*P.PCHILD)+(O.OINFANT*P.PINFANT))-(O.OAMOUNT+NVL(PO.POAMOUNT, 0)) AS "BALANCE",
+    			NVL(RP.REVIEWPOST, 0) AS "REVIEWPOST",
+    			NVL(RV.REVIEW, 0) AS "REVIEW"
+			FROM ORDERS O INNER JOIN PACKAGE P ON O.PNUMBER = P.PNUMBER
+			    INNER JOIN PACKAGESCHEDULE PS ON O.PNUMBER = PS.PNUMBER AND O.PSSTART = PS.PSSTART
+			    LEFT OUTER JOIN (SELECT PNUMBER,
+			                    LISTAGG(CAST(PLONAME AS VARCHAR(50)), ', ') WITHIN GROUP (ORDER BY PLONAME) AS "PLONAME"
+			                FROM PACKAGELOCATION
+			                GROUP BY PNUMBER) PLO ON O.PNUMBER = PLO.PNUMBER
+			    LEFT OUTER JOIN (SELECT OMID,
+			                        OPNUMBER,
+			                        ODATE,
+			                        SUM(POAMOUNT) AS "POAMOUNT"
+			                    FROM POINT
+			                    WHERE POSTATE = -1
+			                    GROUP BY OMID, OPNUMBER, ODATE) PO ON O.MID = PO.OMID AND O.ODATE = PO.ODATE AND O.PNUMBER = PO.OPNUMBER
+			    LEFT OUTER JOIN (SELECT OMID,
+			                        OPNUMBER,
+			                        ODATE,
+			                        COUNT(OMID) AS "REVIEWPOST"
+			                    FROM REVIEWPOST
+			                    GROUP BY OMID, OPNUMBER, ODATE) RP ON O.MID = RP.OMID AND O.ODATE = RP.ODATE AND O.PNUMBER = RP.OPNUMBER
+			    LEFT OUTER JOIN (SELECT OMID,
+			                        OPNUMBER,
+			                        ODATE,
+			                        COUNT(OMID) AS "REVIEW"
+			                    FROM REVIEW
+			                    GROUP BY OMID, OPNUMBER, ODATE) RV ON O.MID = RV.OMID AND O.ODATE = RV.ODATE AND O.PNUMBER = RV.OPNUMBER
+			<choose>
+	 			<when test="orders.OSTATE == 1">
+	 				WHERE O.OSTATE = #{orders.OSTATE} AND O.MID = #{orders.MID}
+	 			</when>
+	 			<when test="orders.OSTATE == 0">
+	 				WHERE O.OSTATE != 1 AND O.MID = #{orders.MID}
+	 			</when>
+	 		</choose>)
+	 	WHERE RN BETWEEN #{page.start} AND #{page.end}
+ 	</select>
+ 	
+ 	<select id="passwordCheck" parameterType="Member" resultType="String">
+ 		SELECT COUNT(MID)
+ 		FROM MEMBER
+ 		WHERE MID = #{MID} AND MPW = #{MPW}
+ 	</select>
+ 	
+ 	<update id="passwordUpdate" parameterType="Member">
+ 		UPDATE MEMBER SET MPW = #{MPW} WHERE MID = #{MID}
+ 	</update>
+ 	
+ 	<select id="memberInfo" parameterType="Member" resultType="Member">
+ 		SELECT *
+		FROM MEMBER
+		WHERE MID = #{MID} 
+ 	</select>
+ 	
+ 	<update id="memberUpdate" parameterType="Member">
+ 		UPDATE MEMBER
+		SET MPHONE = #{MPHONE}, MNICK = #{MNICK}
+		WHERE MID = #{MID}
+ 	</update>
+ 	
+ 	<select id="myCommentsListCount" parameterType="Member" resultType="INTEGER">
+ 		SELECT COUNT(MID)
+		FROM COMMENTS
+		WHERE MID = #{MID} AND CMSTATE = 1
+ 	</select>
+ 	
+ 	<select id="myCommentsList" parameterType="java.util.Map" resultType="CommentsList">
+ 		SELECT *
+ 		FROM (SELECT ROW_NUMBER() OVER(ORDER BY CM.CMDATE DESC) RN,
+	 			CM.BNUMBER,
+			    CM.MID,
+			    CM.CMDATE,
+			    CM.CMCONTENT,
+			    B.BTITLE,
+			    B.BSTATE,
+			    M.MNICK,
+			    CL.COMMENTSLIKE,
+			    CC.COMMENTSCOMPLAINT
+			FROM COMMENTS CM INNER JOIN BOARD B ON CM.BNUMBER = B.BNUMBER
+			                INNER JOIN MEMBER M ON CM.MID = M.MID
+			                LEFT OUTER JOIN (SELECT CMBNUMBER,
+			                                    CMMID,
+			                                    CMDATE,
+			                                    COUNT(MID) AS "COMMENTSLIKE"
+			                                FROM COMMENTSLIKE
+			                                GROUP BY CMBNUMBER, CMMID, CMDATE) CL ON CM.BNUMBER = CL.CMBNUMBER AND CM.MID = CL.CMMID AND CM.CMDATE = CL.CMDATE
+			                LEFT OUTER JOIN (SELECT CMBNUMBER,
+			                                    CMMID,
+			                                    CMDATE,
+			                                    COUNT(MID) AS "COMMENTSCOMPLAINT"
+			                                FROM COMMENTSCOMPLAINT
+			                                GROUP BY CMBNUMBER, CMMID, CMDATE) CC ON CM.BNUMBER = CC.CMBNUMBER AND CM.MID = CC.CMMID AND CM.CMDATE = CC.CMDATE
+			WHERE CM.MID = #{member.MID})
+		WHERE RN BETWEEN #{page.start} AND #{page.end}
+ 	</select>
+ 	
+ 	<select id="myReviewList" parameterType="Member" resultType="ReviewList">
+ 		SELECT RV.*,
+		    P.PNAME,
+		    M.MNICK
+		FROM REVIEW RV INNER JOIN PACKAGE P ON RV.OPNUMBER = P.PNUMBER
+		            INNER JOIN MEMBER M ON RV.OMID = M.MID
+		WHERE RV.OMID = #{MID}
+ 	</select>
+ 	
+ 	<select id="idSearch" parameterType="Member" resultType="String">
+ 		SELECT MID
+ 		FROM MEMBER
+ 		WHERE MNAME = #{MNAME} AND MPHONE = #{MPHONE}
+ 	</select>
+ 	
+ 	<insert id="preferenceInsert" parameterType="MemberPreference">
+ 		INSERT INTO MEMBERPREFERENCE(MID, CNUMBER)
+ 		VALUES(#{MID}, #{CNUMBER})
+ 	</insert>
+ 	
+ 	<select id="otherCategoryList" parameterType="Member" resultType="Category">
+ 		SELECT *
+		FROM CATEGORY
+		WHERE CNUMBER NOT IN(SELECT CNUMBER
+		                    FROM MEMBERPREFERENCE
+		                    WHERE MID = #{MID})
+ 	</select>
+ 	
+ 	<delete id="preferenceDelete" parameterType="MemberPreference">
+ 		DELETE FROM MEMBERPREFERENCE WHERE MID = #{MID} AND CNUMBER = #{CNUMBER}
+ 	</delete>
+ </mapper>
